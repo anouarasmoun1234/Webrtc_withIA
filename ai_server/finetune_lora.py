@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# ai_server/finetune_lora.py
+
 
 from datasets import load_dataset
 from transformers import (
@@ -9,8 +8,7 @@ from transformers import (
     TrainingArguments
 )
 from peft import LoraConfig, get_peft_model
-
-# ─── CONFIG ────────────────────────────────────────────────────────────────
+#config
 BASE_MODEL    = "gpt2"               # small GPT-2 base
 DATA_PATH     = "domain.jsonl"       # your 5–10 examples file
 OUTPUT_DIR    = "lora_adapter"       # where to save your adapter
@@ -19,7 +17,7 @@ BATCH_SIZE    = 2                    # tiny batch so it fits CPU RAM
 EPOCHS        = 3
 LEARNING_RATE = 2e-4
 
-# ─── LOAD & TOKENIZE ────────────────────────────────────────────────────────
+
 # 1) load your tiny domain dataset
 ds = load_dataset("json", data_files=DATA_PATH, split="train")
 
@@ -45,7 +43,7 @@ def preprocess(examples):
 
 tokenized = ds.map(preprocess, batched=True, remove_columns=ds.column_names)
 
-# ─── MODEL & LoRA ──────────────────────────────────────────────────────────
+
 # 3) base model (FP32)
 model = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
 model.resize_token_embeddings(len(tokenizer))
@@ -61,7 +59,7 @@ lora_cfg = LoraConfig(
 )
 model = get_peft_model(model, lora_cfg)
 
-# ─── TRAIN ──────────────────────────────────────────────────────────────────
+
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
     per_device_train_batch_size=BATCH_SIZE,

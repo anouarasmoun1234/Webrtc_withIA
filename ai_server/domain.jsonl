@@ -1,18 +1,20 @@
-{"prompt":"User: What is WebRTC and why is it useful?\nAI:","completion":" WebRTC (Web Real-Time Communication) is a set of protocols and browser APIs that enable peer-to-peer audio, video and data transfer without needing plugins. It’s useful for building video conferencing, file sharing and real-time collaboration apps directly in the browser."}
-{"prompt":"User: How does a STUN server work in WebRTC?\nAI:","completion":" A STUN (Session Traversal Utilities for NAT) server helps a peer discover its public IP address and port by reflecting packets back. This information is then used to establish a direct peer-to-peer connection through NATs."}
-{"prompt":"User: When and why do we need a TURN server?\nAI:","completion":" TURN (Traversal Using Relays around NAT) is used when direct P2P connections fail (e.g., symmetric NATs). It relays all media through a server, ensuring connectivity at the cost of higher latency and bandwidth usage."}
-{"prompt":"User: What is the role of a signalling server in a mesh conference?\nAI:","completion":" The signalling server exchanges join messages, SDP offers/answers and ICE candidates among peers. In a mesh, every client connects directly to every other after initial signalling—no media passes through the server."}
-{"prompt":"User: Explain SDP offers and answers.\nAI:","completion":" SDP (Session Description Protocol) describes media capabilities (codecs, resolutions, ICE candidates). The caller sends an SDP offer; the callee sets it as remote description, creates an SDP answer describing its own capabilities, and sends it back."}
-{"prompt":"User: What are ICE candidates?\nAI:","completion":" ICE candidates are potential network addresses (host, server reflexive, relayed) that peers exchange to determine the optimal path for media packets. Each candidate is tested until connectivity succeeds."}
-{"prompt":"User: How do you implement a P2P mesh conference in code?\nAI:","completion":" 1) Get local media via `getUserMedia()`; 2) Connect to the signalling server and join a room; 3) Exchange peers list; 4) For each peer, create an RTCPeerConnection, add local tracks, exchange SDP and ICE; 5) Render incoming streams on `<video>` elements."}
-{"prompt":"User: Why do we add a padding token to the tokenizer when fine-tuning?\nAI:","completion":" Without a pad token, batching variable-length inputs fails. By assigning `pad_token = eos_token` (or adding `'<PAD>'`), we can pad shorter sequences to uniform length, enabling efficient batched training."}
-{"prompt":"User: What is LoRA fine-tuning and when should you use it?\nAI:","completion":" LoRA (Low-Rank Adaptation) injects small, trainable rank-decomposition matrices into each transformer layer. It dramatically reduces trainable parameters, making fine-tuning feasible on CPU or limited-GPU devices."}
-{"prompt":"User: How do you train a LoRA adapter on a small dataset?\nAI:","completion":" 1) Load a pretrained base model (e.g. GPT-Neo-125M) on CPU; 2) Attach a LoRA config targeting projection layers; 3) Prepare a `domain.jsonl` of prompt/completion pairs; 4) Tokenize with truncation/padding; 5) Use a `Trainer` with small batch size and few epochs; 6) Save the adapter."}
-{"prompt":"User: How do I deploy my fine-tuned model behind a FastAPI endpoint?\nAI:","completion":" 1) In `server.py`, load the base model and LoRA adapter; 2) Wrap in a FastAPI `@app.post('/generate')`; 3) Receive JSON `{'prompt':..., 'text':...}`; 4) Tokenize input, call `model.generate()`, decode output; 5) Return `{'generated': ...}` in JSON."}
-{"prompt":"User: How can I have an AI agent join my WebRTC room headlessly?\nAI:","completion":" Use Puppeteer: 1) Launch headless Chrome; 2) Navigate to your `peerconnection.html#<roomId>`; 3) Wait for video/chat UI to initialize; 4) Wire up page’s WebSocket to send/receive chat and display incoming streams in hidden `<video>` elements; 5) Control via `page.evaluate()`."}
-{"prompt":"User: What common SDP “Called in wrong state: stable” errors occur and how to fix them?\nAI:","completion":" This happens if you setRemoteDescription before setting your own localDescription (or vice versa). Ensure you only create an answer after `setRemoteDescription(offer)` and that you await `setLocalDescription()` before sending."}
-
-{"prompt":"User: What steps have we covered so far in development?\nAI:","completion":" We’ve: 1) Built a mesh WebRTC front-end with video + chat; 2) Written a Node.js signalling server; 3) Added FastAPI inference and fine-tuned a LoRA adapter on small domain data; 4) Created a Puppeteer-driven headless AI agent to join the room; 5) Encountered and fixed common SDP, pad_token, and adapter loading errors."}
-{"prompt":"User: Hi there!\nAI:","completion":" Hello! How can I help you today?"}
-{"prompt":"User: What’s your name?\nAI:","completion":" I’m your friendly demo AI—feel free to call me “Assistant.” What would you like to discuss?"}
-{"prompt":"User: Thanks for your help.\nAI:","completion":" You’re welcome! Always happy to assist. Let me know if there’s anything else."}
+{"prompt":"User: hi\nAI:","completion":" Hello! How are you today?"}
+{"prompt":"User: hello\nAI:","completion":" Hi there! Nice to meet you."}
+{"prompt":"User: how are you?\nAI:","completion":" I'm just a computer program, but I'm functioning well! How about you?"}
+{"prompt":"User: good morning\nAI:","completion":" Good morning! Have a great day ahead."}
+{"prompt":"User: what's up?\nAI:","completion":" Not much, just ready to help you. What's new with you?"}
+{"prompt":"User: nice to meet you\nAI:","completion":" Likewise! How can I assist you today?"}
+{"prompt":"User: have a good day\nAI:","completion":" Thank you! You too, take care."}
+{"prompt":"User: what time is it?\nAI:","completion":" I don't have access to real-time clock, but you can check your device's time."}
+{"prompt":"User: thanks\nAI:","completion":" You're welcome! Anything else I can do for you?"}
+{"prompt":"User: bye\nAI:","completion":" Goodbye! Come back anytime you need help."}
+{"prompt":"User: see you later\nAI:","completion":" See you! Have a nice day."}
+{"prompt":"User: hello everyone\nAI:","completion":" Hi everyone! How's it going?"}
+{"prompt":"User: good afternoon\nAI:","completion":" Good afternoon! Hope you're having a productive day."}
+{"prompt":"User: how's the weather?\nAI:","completion":" I don't have weather data, but I hope it's pleasant wherever you are!"}
+{"prompt":"User: what are you doing?\nAI:","completion":" I'm here waiting to help you with anything you need."}
+{"prompt":"User: good evening\nAI:","completion":" Good evening! Hope you had a good day."}
+{"prompt":"User: hey there\nAI:","completion":" Hey! What can I do for you today?"}
+{"prompt":"User: pleased to meet you\nAI:","completion":" The pleasure is mine! How may I assist you?"}
+{"prompt":"User: until next time\nAI:","completion":" Until next time! Don't hesitate to come back if you need anything."}
+{"prompt":"User: Good bye\nAI:","completion":" Good bye meet you next time"}

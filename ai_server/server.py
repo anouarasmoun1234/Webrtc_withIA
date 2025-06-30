@@ -1,46 +1,26 @@
-# ai_server/server.py
-from fastapi import FastAPI
-from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from faster_whisper import WhisperModel
+import tempfile, uuid, os
 
-# ─── CONFIG ────────────────────────────────────────────────────────────────
-BASE_MODEL     = "gpt2"
-ADAPTER_DIR    = "lora_adapter"   # where finetune_lora.py saved your adapter
-DEVICE         = "cpu"
+app = FastAPI()
 
-# ─── LOAD TOKENIZER & MODEL ─────────────────────────────────────────────────
-print("Loading tokenizer + base model…")
-tokenizer = AutoTokenizer.from_pretrained(ADAPTER_DIR)
-print("Loading base model + LoRA adapter…")
-base = AutoModelForCausalLM.from_pretrained(BASE_MODEL)
-model = PeftModel.from_pretrained(base, ADAPTER_DIR)
-model.to(DEVICE).eval()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],       # in prod, lock this down!
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# ─── FASTAPI SETUP ─────────────────────────────────────────────────────────
-app = FastAPI(title="LoRA-tuned GPT2 Inference")
+model = WhisperModel("tiny")  # small CPU model
 
-class GenerationRequest(BaseModel):
-    prompt: str
-    max_length: int = 128
-
-class GenerationResponse(BaseModel):
-    text: str
-
-@app.post("/generate", response_model=GenerationResponse)
-def generate(req: GenerationRequest):
-    inputs = tokenizer(req.prompt, return_tensors="pt").to(DEVICE)
-    out    = model.generate(
-        **inputs,
-        max_length=req.max_length,
-        do_sample=True,
-        top_p=0.9,
-        temperature=0.8,
-        pad_token_id=tokenizer.eos_token_id
-    )
-    text = tokenizer.decode(out[0], skip_special_tokens=True)
-    return GenerationResponse(text=text)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+@app.post("/transcribe")
+async def transcribe(audio: UploadFile = File(...)):
+    tmp = f"/tmp/{uuid.uuid4()}.webm"
+    with open(tmp, "wb") as f:
+        f.write(await audio.read())
+    segments, _ = model.transcribe(tmp, beam_size=5)
+    text = "".join(seg.text for seg in segments)
+    os.remove(tmp)
+    return {"text": text}
