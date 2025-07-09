@@ -4,3 +4,6 @@ ai/node_modules/
 .env
 *.log
 
+__pycache__/
+*.pyc
+debug_audio.webm
