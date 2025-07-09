@@ -7,13 +7,54 @@
     body { font-family: sans-serif; text-align: center; }
     #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 1em; }
     video { width: 30%; max-width: 300px; background: #000; }
+    #controls, #transcription-controls, #chat-controls { margin: 1em; }
     #chat { width: 80%; max-width: 600px; margin: auto; }
     #msgs { height: 200px; border: 1px solid #ccc; overflow-y: auto; padding: 0.5em; text-align: left; }
-    #controls, #chat-controls { margin: 1em; }
+    #transcript { width: 80%; max-width: 600px; margin: 0.5em auto; min-height: 2em; border: 1px solid #ccc; padding: 0.5em; text-align: left; font-style: italic; }
+    #transcription-controls button { margin: 0 0.5em; }
   </style>
+  <link rel="icon" href="data:,">
+  
 </head>
 <body>
-  <h1>Peer-to-Peer Conference </h1>
+
+
+
+
+  <!-- Barre de navigation -->
+<nav id="navBar" style="
+    background: #1a2a6c;
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+">
+    <div id="roomInfo" style="display: flex; align-items: center;">
+        <h2 id="roomName" style="margin: 0; font-size: 1.2rem;">Salle de conférence</h2>
+    </div>
+    <div id="userInfo" style="display: flex; align-items: center;">
+        <span id="userName" style="margin-right: 15px;"></span>
+        <div style="
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #0072ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        " id="userAvatar"></div>
+    </div>
+</nav>
+
+
+
+
+  <h1>Peer-to-Peer Conference</h1>
 
   <div id="videos">
     <video id="local" autoplay playsinline muted></video>
@@ -23,6 +64,10 @@
   <div id="controls">
     <button id="hangup" disabled>Hang up</button>
   </div>
+
+  <!-- Contrôles de transcription -->
+  
+  
 
   <div id="chat">
     <div id="msgs"></div>
@@ -34,7 +79,7 @@
 
   <!-- adapter WebRTC (polyfill) -->
   <script src="js/adapter-latest.js"></script>
-  <!-- logique P2P mesh + chat -->
+  <!-- logique P2P mesh + chat + transcription -->
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accueil Conférence</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background: #1a2a6c; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .container { background: rgba(255, 255, 255, 0.1); padding: 2rem; border-radius: 10px; width: 90%; max-width: 500px; }
+        h1 { text-align: center; margin-bottom: 1.5rem; color: white; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; color: #e0e0ff; }
+        input { width: 100%; padding: 10px; border-radius: 5px; border: none; background: rgba(255, 255, 255, 0.2); color: white; }
+        button { width: 100%; padding: 12px; background: #0072ff; border: none; border-radius: 5px; color: white; cursor: pointer; margin-top: 1rem; }
+        button:hover { background: #0056cc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conférence WebRTC</h1>
+        <div class="form-group">
+            <label for="username">Votre nom</label>
+            <input type="text" id="username" placeholder="Entrez votre nom" required>
+        </div>
+        <div class="form-group">
+            <label for="room">Nom de la salle</label>
+            <input type="text" id="room" placeholder="Nom de la salle" required>
+        </div>
+        <button id="joinBtn">Rejoindre la conférence</button>
+    </div>
+
+    <script>
+        document.getElementById('joinBtn').addEventListener('click', () => {
+            const username = document.getElementById('username').value.trim();
+            const room = document.getElementById('room').value.trim();
+            
+            if (!username || !room) {
+                alert('Veuillez entrer votre nom et un nom de salle');
+                return;
+            }
+            
+            // Rediriger vers la page de conférence avec les paramètres
+            window.location.href = `peerconnection.html?username=${encodeURIComponent(username)}&room=${encodeURIComponent(room)}`;
+        });
+    </script>
+</body>
+</html>
