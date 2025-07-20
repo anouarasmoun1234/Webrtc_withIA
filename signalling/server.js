@@ -68,6 +68,21 @@ wss.on('connection', socket => {
         }
       }
     }
+    if (msg.type === 'transcription' && msg.room && msg.text) {
+  const peersInRoom = rooms.get(msg.room) || new Map();
+  
+  // Diffuser à tous les participants SAUF l'émetteur original
+  for (const [otherId, otherSocket] of peersInRoom) {
+    if (otherId !== peerId && otherSocket.readyState === WebSocket.OPEN) {
+      otherSocket.send(JSON.stringify({
+        type: 'transcription',
+        text: msg.text,
+        from: peerId, // ID de l'émetteur original
+        timestamp: Date.now()
+      }));
+    }
+  }
+}
 
   });
 
