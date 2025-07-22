@@ -1,57 +1,64 @@
+
 'use strict';
 
+// =====================
 // UI references
+
 const localVideo = document.getElementById('local');
-const videosDiv = document.getElementById('videos');
-const hangupBtn = document.getElementById('hangup');
+const videosDiv  = document.getElementById('videos');
+const hangupBtn  = document.getElementById('hangup');
 
 // Chat UI references
 const msgsDiv = document.getElementById('msgs');
-const txt = document.getElementById('txt');
-const btn = document.getElementById('btn');
+const txt     = document.getElementById('txt');
+const btn     = document.getElementById('btn');
 
 // Transcription UI
 const transcriptDiv = document.createElement('div');
 transcriptDiv.id = 'transcript';
-transcriptDiv.style.background = '#f0f0f0';
-transcriptDiv.style.padding = '10px';
-transcriptDiv.style.marginTop = '20px';
+transcriptDiv.style.background   = '#f0f0f0';
+transcriptDiv.style.padding      = '10px';
+transcriptDiv.style.marginTop    = '20px';
 transcriptDiv.style.borderRadius = '8px';
-transcriptDiv.style.maxHeight = '100px';
-transcriptDiv.style.overflowY = 'auto';
+transcriptDiv.style.maxHeight    = '100px';
+transcriptDiv.style.overflowY    = 'auto';
 document.body.insertBefore(transcriptDiv, videosDiv.nextSibling);
 
+// =====================
+// State
+// =====================
 let localStream;
-const peers = new Map();    // peerId → RTCPeerConnection
-let myPeerId;               // set by signalling
-
-
+const peers = new Map(); // peerId -> RTCPeerConnection
+let myPeerId;
 
 // Audio processing
 let audioContext;
 let audioProcessor;
 let transcriptionSocket;
 
+//lara 
+import { initLaraAudio } from '~/STAGE-folder/WebRTC/ai/lara.js'; // Adjust path as needed
+let lara; 
 // 1) Room ID from URL hash
 const roomId = location.hash.slice(1) || crypto.randomUUID();
 if (!location.hash) location.hash = roomId;
 
-// 2) Capture local media first
+// =====================
+// Local media capture
+// =====================
 async function startLocalStream() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ 
-      video: true, 
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         sampleRate: 16000,
-        channelCount:1// Optimisé pour Whisper
+        channelCount: 1 // Optimisé pour Whisper
       }
     });
     localVideo.srcObject = localStream;
     console.log('[Init] localStream ready');
-    
-    // Initialize audio processing for transcription
     initAudioProcessing();
   } catch (e) {
     alert('getUserMedia failed: ' + e.message);
@@ -59,41 +66,40 @@ async function startLocalStream() {
   }
 }
 
-// Initialize audio processing for transcription
+// =====================
+// Audio processing -> WS transcription
+// =====================
 function initAudioProcessing() {
   try {
-    // Create audio context
     audioContext = new (window.AudioContext || window.webkitAudioContext)({
-      sampleRate: 16000 // Fréquence optimale pour Whisper
+      sampleRate: 16000
     });
-    
-    // Create audio source from local stream
+    lara = initLaraAudio(audioContext);
+
     const audioSource = audioContext.createMediaStreamSource(localStream);
-    
-    // Create processor node - taille de buffer réduite pour moins de latence
+
+    // ScriptProcessor est déprécié mais ok pour prototypage
     audioProcessor = audioContext.createScriptProcessor(1024, 1, 1);
-    
-    // Configure processor
-// Remplacer la conversion Int16 par du Float32 direct
-audioProcessor.onaudioprocess = (event) => {
-  if (!transcriptionSocket || transcriptionSocket.readyState !== WebSocket.OPEN) return;
-  
-  // Float32 direct (plus efficace)
-  const pcmData = event.inputBuffer.getChannelData(0);
-  transcriptionSocket.send(pcmData);
-};
-    
-    // Connect nodes
+
+    audioProcessor.onaudioprocess = (event) => {
+      if (!transcriptionSocket || transcriptionSocket.readyState !== WebSocket.OPEN) return;
+      const pcmData = event.inputBuffer.getChannelData(0);  // Float32Array
+      // IMPORTANT: envoyer un ArrayBuffer, pas l'objet JS
+      transcriptionSocket.send(pcmData.buffer.slice(0));
+    };
+
     audioSource.connect(audioProcessor);
-    audioProcessor.connect(audioContext.destination);
-    
+    audioProcessor.connect(audioContext.destination); // (ou audioContext.createGain() silencieux)
+
     console.log('[Audio] Processing initialized');
   } catch (error) {
     console.error('Audio processing error:', error);
   }
 }
 
-// 3) Signalling setup (mesh + chat)
+// =====================
+// Signalling (mesh + chat)
+// =====================
 let socket;
 function startSignalling() {
   socket = new WebSocket('ws://localhost:3000');
@@ -101,39 +107,44 @@ function startSignalling() {
   socket.addEventListener('open', () => {
     console.log('[WS] connected, joining room', roomId);
     socket.send(JSON.stringify({ join: roomId }));
-    
-    // Connect to transcription server
-    connectTranscriptionWebSocket();
+    //
   });
 
   socket.addEventListener('message', async ({ data }) => {
     const msg = JSON.parse(data);
 
     switch (msg.type) {
+
       // --- MESH EVENTS ---
-      case 'your-id':
+      case 'your-id': {
         myPeerId = msg.peerId;
         console.log('[WS] myPeerId =', myPeerId);
-        break;
 
-      case 'peers':
+        // ouvrir le WS de transcription une fois qu'on connaît mon ID
+        connectTranscriptionWebSocket();
+        break;
+      }
+
+      case 'peers': {
         console.log('[WS] peers:', msg.peers);
         msg.peers.forEach(id => {
           if (id !== myPeerId) createPeerConnection(id, true);
         });
         break;
+      }
 
-      case 'new-peer':
+      case 'new-peer': {
         console.log('[WS] new peer:', msg.peerId);
-        if (msg.peerId === myPeerId) return;
+        if (msg.peerId === myPeerId) break;
         createPeerConnection(msg.peerId, false);
         break;
+      }
 
       case 'signal': {
         const { from, signal } = msg;
-        if (from === myPeerId) return;
+        if (from === myPeerId) break;
         const pc = peers.get(from);
-        if (!pc) return;
+        if (!pc) break;
 
         if (signal.sdp) {
           console.log(`[Signal] ${signal.type} from`, from);
@@ -154,7 +165,7 @@ function startSignalling() {
         break;
       }
 
-      case 'peer-left':
+      case 'peer-left': {
         console.log('[WS] peer left:', msg.peerId);
         const pc = peers.get(msg.peerId);
         if (pc) pc.close();
@@ -162,67 +173,127 @@ function startSignalling() {
         const el = document.getElementById(`remote-${msg.peerId}`);
         if (el) el.remove();
         break;
+      }
 
       // --- CHAT EVENTS ---
-      case 'chat':
+      case 'chat': {
         const line = document.createElement('div');
         line.textContent = `${msg.from}: ${msg.text}`;
         msgsDiv.appendChild(line);
         msgsDiv.scrollTop = msgsDiv.scrollHeight;
         break;
+      }
+
+      // --- TRANSCRIPTION (diffusée par signalling) ---
+      case 'transcription': {
+        // afficher la transcription d’un autre pair
+        const line = document.createElement('div');
+        line.textContent = `${msg.from || 'Remote'} (STT): ${msg.text}`;
+        transcriptDiv.appendChild(line);
+        transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+        break;
+      }
+            // --- LARA AUDIO (temp debug) ---
+      case 'lara-audio': {
+        if (lara?.play) lara.play(msg.b64);
+        // Option debug : télécharger automatiquement
+        // const blob = b64toBlob(msg.b64, 'audio/wav'); new Audio(URL.createObjectURL(blob)).play();
+        break;
+      }
+
+      default:
+        break;
     }
+    function b64toBlob(b64, mime='audio/wav') {
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) buf[i] = bin.charCodeAt(i);
+  return new Blob([buf], {type: mime});
+}
+
   });
 }
 
-// Connect to transcription WebSocket
+// =====================
+// Transcription WebSocket
+// =====================
 function connectTranscriptionWebSocket() {
+  if (transcriptionSocket &&
+      (transcriptionSocket.readyState === WebSocket.OPEN ||
+       transcriptionSocket.readyState === WebSocket.CONNECTING)) {
+    return; // déjà en cours
+  }
+
   transcriptionSocket = new WebSocket('ws://localhost:8000/transcribe');
-  
+
   transcriptionSocket.onopen = () => {
     console.log('[Transcription] WS connected');
-    
-    // Envoyez la configuration audio - CORRECTION ICI
-    const config = {
-      sampleRate: audioContext.sampleRate,
-      channels: 1,
-      language: 'en'
-    };
-    transcriptionSocket.send(JSON.stringify(config));
+
+    transcriptionSocket.send(JSON.stringify({
+      peer_id:   myPeerId,
+      sampleRate: audioContext ? audioContext.sampleRate : 16000,
+      channels:  1,
+      language:  'en'
+    }));
   };
-  
+
   transcriptionSocket.onmessage = (event) => {
-    try {
-      // Utilisez directement le texte (pas de JSON.parse)
-      const transcriptText = event.data;
-      transcriptDiv.textContent = transcriptText;
-    } catch (e) {
-      console.error('Error handling transcript:', e);
+    const transcriptText = event.data;
+    // afficher localement
+    const line = document.createElement('div');
+    line.textContent = `Me (STT): ${transcriptText}`;
+    transcriptDiv.appendChild(line);
+    transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+
+    // relayer aux autres via signalling
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'transcription',
+        room: roomId,
+        text: transcriptText
+      }));
     }
   };
-  
+
   transcriptionSocket.onerror = (error) => {
     console.error('[Transcription] WS error:', error);
   };
-  
+
   transcriptionSocket.onclose = () => {
     console.log('[Transcription] WS closed');
   };
 }
 
-// 4) Create or reuse a PeerConnection
+// =====================
+// PeerConnection helper
+// =====================
 async function createPeerConnection(peerId, isCaller) {
   if (peers.has(peerId) || peerId === myPeerId) return;
   console.log('[Peer] create PC for', peerId, 'caller?', isCaller);
 
-  const pc = new RTCPeerConnection({ 
+  const pc = new RTCPeerConnection({
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
   });
+
   peers.set(peerId, pc);
 
-  // Add local tracks
+  pc.onnegotiationneeded = async () => {
+     try {
+       const offer = await pc.createOffer();
+       await pc.setLocalDescription(offer);
+       socket.send(JSON.stringify({
+         type:   'signal',
+         to:     peerId,
+         signal: pc.localDescription
+       }));
+     } catch (e) { console.error('negotiationneeded', e); }
+   };
+   // Pistes locales (cam + micro)
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-  // ICE → signalling
+  // ICE -> signalling
+   if (lara?.track) {
+    pc.addTrack(lara.track, new MediaStream([lara.track]));
+  }
   pc.onicecandidate = ({ candidate }) => {
     if (candidate) {
       socket.send(JSON.stringify({
@@ -233,7 +304,7 @@ async function createPeerConnection(peerId, isCaller) {
     }
   };
 
-  // Create & mute remote video
+  // Remote media
   const remoteVid = document.createElement('video');
   remoteVid.id          = `remote-${peerId}`;
   remoteVid.autoplay    = true;
@@ -241,13 +312,12 @@ async function createPeerConnection(peerId, isCaller) {
   remoteVid.muted       = false;
   videosDiv.appendChild(remoteVid);
 
-  // Attach remote stream
   pc.ontrack = ({ streams }) => {
     console.log('[Peer] ontrack from', peerId);
     remoteVid.srcObject = streams[0];
   };
 
-  // Only newcomers send the initial offer
+  // Only callers send offer
   if (isCaller) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -259,37 +329,31 @@ async function createPeerConnection(peerId, isCaller) {
   }
 }
 
-// 5) Hangup cleanup
+// =====================
+// Hangup
+// =====================
 hangupBtn.addEventListener('click', () => {
-  // Fermer la connexion de transcription
   if (transcriptionSocket) {
     transcriptionSocket.close();
     transcriptionSocket = null;
   }
-  
-  // Arrêter le traitement audio
   if (audioProcessor) {
     audioProcessor.disconnect();
     audioProcessor = null;
   }
-  
-  // Fermer le contexte audio
   if (audioContext) {
     audioContext.close().catch(console.error);
     audioContext = null;
   }
-  
-  // Fermer les connexions P2P
   peers.forEach(pc => pc.close());
   peers.clear();
-  
-  // Supprimer les vidéos distantes
   document.querySelectorAll('[id^="remote-"]').forEach(el => el.remove());
-  
   console.log('[Hangup] All connections closed');
 });
 
-// 6) Chat send handler
+// =====================
+// Chat send
+// =====================
 btn.addEventListener('click', () => {
   const t = txt.value.trim();
   if (!t) return;
@@ -305,15 +369,13 @@ btn.addEventListener('click', () => {
   }));
   txt.value = '';
 });
-
-// Autoriser l'envoi avec Enter
 txt.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    btn.click();
-  }
+  if (e.key === 'Enter') btn.click();
 });
 
-// 7) Start everything
+// =====================
+// Boot
+// =====================
 (async () => {
   await startLocalStream();
   startSignalling();

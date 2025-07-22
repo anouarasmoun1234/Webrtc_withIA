@@ -10,7 +10,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "node-fetch": "^3.3.2",
     "puppeteer": "^24.10.2",
-    "ws": "^8.18.2"
+    "redis": "^5.6.0",
+    "uuid": "^11.1.0",
+    "wrtc": "^0.4.7",
+    "ws": "^8.18.3"
   }
 }
