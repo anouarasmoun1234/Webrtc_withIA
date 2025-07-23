@@ -24,6 +24,14 @@ transcriptDiv.style.maxHeight    = '100px';
 transcriptDiv.style.overflowY    = 'auto';
 document.body.insertBefore(transcriptDiv, videosDiv.nextSibling);
 
+
+//call lara by voice
+// Wake-word throttle
+let lastWake = 0;                   // timestamp ms
+const WAKE_COOLDOWN = 2000;         // 2 s
+function isWakeWord(text) {
+  return /^lara[ ,]/i.test(text.trim());
+}
 // =====================
 // State
 // =====================
@@ -37,7 +45,7 @@ let audioProcessor;
 let transcriptionSocket;
 
 //lara 
-import { initLaraAudio } from '~/STAGE-folder/WebRTC/ai/lara.js'; // Adjust path as needed
+import { initLaraAudio } from '../ai/lara.js'; // Adjust path as needed
 let lara; 
 // 1) Room ID from URL hash
 const roomId = location.hash.slice(1) || crypto.randomUUID();
@@ -244,7 +252,25 @@ function connectTranscriptionWebSocket() {
     line.textContent = `Me (STT): ${transcriptText}`;
     transcriptDiv.appendChild(line);
     transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
-
+    // Si c'est un wake-word, jouer Lara
+    if (isWakeWord(transcriptText)){
+      const now = Date.now();
+      if (now - lastWake > WAKE_COOLDOWN) {
+        lastWake = now;
+        //answer without keyword
+        const question = transcriptText.replace(/lara[ ,]/i, '').trim();
+        if (question) {
+          socket.send(JSON.stringify({
+            type: 'chat',
+            room: roomId,
+            from: myPeerId || 'Me',
+            text: `@lara ${question}`
+          }));
+          console.log('[wake-word] asked:', question);
+        } 
+      }
+    
+    }
     // relayer aux autres via signalling
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({

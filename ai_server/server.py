@@ -25,6 +25,7 @@ genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 GEMINI_MODEL = "ggemini-1.5-flash"  
 
 
+
 # Chat haute vitesse, gratuit :
 PREFERRED = "models/gemini-1.5-flash"
 FALLBACK  = "models/gemini-1.5-pro"
@@ -299,6 +300,35 @@ async def ask_speech(req: AskReq = Body(...)):
     answer_text = run_lara(req.question, context)  # <-- remplace plus tard
 
     wav_bytes   = text_to_wav_bytes(answer_text, req.voice or DEFAULT_VOICE)
+   
     b64         = base64.b64encode(wav_bytes).decode("utf-8")
     return {"text": answer_text, "wav_b64": b64}
 
+# --------------------------------------------
+# ===  LARA SUMMARY  =========================
+# --------------------------------------------
+from typing import Annotated
+from fastapi import Query
+
+class SummaryResp(BaseModel):
+    text: str
+    wav_b64: str
+
+@app.get("/summary", response_model=SummaryResp)
+async def summary_endpoint(
+    window: Annotated[int, Query(ge=1, le=60)] = 5,
+    voice:  str = DEFAULT_VOICE
+):
+    """
+    Retourne un résumé (≈3 phrases) de la réunion
+    sur les *window* dernières minutes + TTS.
+    """
+    context = load_recent_text(window)
+    prompt  = (
+        "Tu es Lara, assistante dans une visioconférence.\n"
+        f"Résume la discussion suivante en trois phrases claires :\n\n{context}"
+    )
+    summary = run_lara(prompt, "")          # pas de context supplémentaire
+    wav     = text_to_wav_bytes(summary, voice)
+    b64     = base64.b64encode(wav).decode()
+    return {"text": summary, "wav_b64": b64}
