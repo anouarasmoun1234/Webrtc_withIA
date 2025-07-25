@@ -51,7 +51,7 @@ class TTSReq(BaseModel):
     voice: str | None = DEFAULT_VOICE     # valeur par défaut
 
 class TTSResp(BaseModel):
-    wav_b64: str                          # <-- manquait
+    wav_b64: str                          
 # ------------------------------------------------------------------
 # CSV persistence
 # ------------------------------------------------------------------
@@ -77,7 +77,7 @@ client_contexts = {}
 
 # ------------------------------------------------------------------
 # Startup: load model + worker threads
-# ------------------------------------------------------------------
+
 @app.on_event("startup")
 async def startup_event():
     global whisper_model
@@ -144,7 +144,7 @@ def create_wav_file(filename, audio_data, sample_rate):
 
 # ------------------------------------------------------------------
 # WebSocket endpoint
-# ------------------------------------------------------------------
+
 @app.websocket("/transcribe")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()

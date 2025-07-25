@@ -107,7 +107,7 @@ function initAudioProcessing() {
     audioProcessor.onaudioprocess = (event) => {
       if (!transcriptionSocket || transcriptionSocket.readyState !== WebSocket.OPEN) return;
       const pcmData = event.inputBuffer.getChannelData(0);  // Float32Array
-      // IMPORTANT: envoyer un ArrayBuffer, pas l'objet JS
+      
       transcriptionSocket.send(pcmData.buffer.slice(0));
     };
 
@@ -223,8 +223,7 @@ function startSignalling() {
             // --- LARA AUDIO (temp debug) ---
       case 'lara-audio': {
         if (lara?.play) lara.play(msg.b64);
-        // Option debug : télécharger automatiquement
-        // const blob = b64toBlob(msg.b64, 'audio/wav'); new Audio(URL.createObjectURL(blob)).play();
+        
         break;
       }
 
@@ -289,7 +288,7 @@ function connectTranscriptionWebSocket() {
           sendSummary(5);                 // défaut 5 min
           return;
         }
-        if (sum) {                        // ex. “summary of last 30 minutes”
+        if (sum) {                        
           const n = Math.min(parseInt(sum[1], 10), 60);
           sendSummary(n);
           return;
