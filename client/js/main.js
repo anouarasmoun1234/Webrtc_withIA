@@ -24,16 +24,31 @@ transcriptDiv.style.maxHeight    = '100px';
 transcriptDiv.style.overflowY    = 'auto';
 document.body.insertBefore(transcriptDiv, videosDiv.nextSibling);
 
+//lara UI
+const badge   = document.getElementById('laraBadge')  ?? { hidden:true };
+const muteBtn = document.getElementById('muteLara')   ?? { textContent:'' , onclick:()=>{} };
+let isMuted = JSON.parse(localStorage.getItem('laraMuted') ?? 'false');
+updateMuteBtn();
 
+muteBtn.onclick = () => {
+  isMuted = !isMuted;
+  localStorage.setItem('laraMuted', JSON.stringify(isMuted));
+  updateMuteBtn();
+};
+
+function updateMuteBtn() {
+  muteBtn.textContent = isMuted ? 'Un-mute Lara' : 'Mute Lara';
+}
 //call lara by voice
 // Wake-word throttle
 let lastWake = 0;                   // timestamp ms
 const WAKE_COOLDOWN = 2000;         // 2 s
 function isWakeWord(text) {
-  return /^lara[ ,]/i.test(text.trim());
+  return /^lara[\s,.!?;:-]/i.test(text.trim());
 }
 // =====================
 // State
+
 // =====================
 let localStream;
 const peers = new Map(); // peerId -> RTCPeerConnection
@@ -155,8 +170,12 @@ function startSignalling() {
         if (!pc) break;
 
         if (signal.sdp) {
-          console.log(`[Signal] ${signal.type} from`, from);
-          await pc.setRemoteDescription(signal);
+           try {
+             await pc.setRemoteDescription(signal);
+            } catch (err) {
+              console.error('[Signal] setRemoteDescription error:', pc.signalingState, err.message);
+              return;
+            }
           if (signal.type === 'offer') {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
@@ -254,23 +273,45 @@ function connectTranscriptionWebSocket() {
     transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
     // Si c'est un wake-word, jouer Lara
     if (isWakeWord(transcriptText)){
+      console.log('[debug] STT raw:', transcriptText);
+
       const now = Date.now();
       if (now - lastWake > WAKE_COOLDOWN) {
         lastWake = now;
-        //answer without keyword
-        const question = transcriptText.replace(/lara[ ,]/i, '').trim();
-        if (question) {
-          socket.send(JSON.stringify({
-            type: 'chat',
-            room: roomId,
-            from: myPeerId || 'Me',
-            text: `@lara ${question}`
-          }));
-          console.log('[wake-word] asked:', question);
-        } 
+                const afterKeyword = transcriptText.replace(/lara[ ,]/i, '').trim();
+        if (!afterKeyword) return;
+
+        /* -------- résumé ? -------- */
+        const sum = afterKeyword.toLowerCase().match(
+           /^summary(?: of)?(?: the)?\s*(?:last\s*)?(\d+)\s*(?:min|mins?|minutes)?$/
+        );
+        if (afterKeyword.toLowerCase() === 'summary'){
+          sendSummary(5);                 // défaut 5 min
+          return;
+        }
+        if (sum) {                        // ex. “summary of last 30 minutes”
+          const n = Math.min(parseInt(sum[1], 10), 60);
+          sendSummary(n);
+          return;
+        }
+
+        /* -------- question normale -------- */
+        socket.send(JSON.stringify({
+          type: 'chat',
+          room: roomId,
+          from: myPeerId || 'Me',
+          text: `@lara ${afterKeyword}`
+        }));
+        console.log('[debug] sent to WS:', `@lara ${afterKeyword}`);
+        
+      
+
+        
       }
-    
     }
+  
+    
+    
     // relayer aux autres via signalling
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
@@ -288,6 +329,17 @@ function connectTranscriptionWebSocket() {
   transcriptionSocket.onclose = () => {
     console.log('[Transcription] WS closed');
   };
+  // Helper
+  function sendSummary(minutes) {
+    socket.send(JSON.stringify({
+      type: 'chat',
+      room: roomId,
+      from: myPeerId || 'Me',
+      text: `@lara summary ${minutes}`
+    }));
+    console.log(`[wake-word] résumé ${minutes} min demandé`);
+  }
+
 }
 
 // =====================
@@ -303,21 +355,11 @@ async function createPeerConnection(peerId, isCaller) {
 
   peers.set(peerId, pc);
 
-  pc.onnegotiationneeded = async () => {
-     try {
-       const offer = await pc.createOffer();
-       await pc.setLocalDescription(offer);
-       socket.send(JSON.stringify({
-         type:   'signal',
-         to:     peerId,
-         signal: pc.localDescription
-       }));
-     } catch (e) { console.error('negotiationneeded', e); }
-   };
+
    // Pistes locales (cam + micro)
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
   // ICE -> signalling
-   if (lara?.track) {
+  if (isCaller && lara?.track) {
     pc.addTrack(lara.track, new MediaStream([lara.track]));
   }
   pc.onicecandidate = ({ candidate }) => {
@@ -335,15 +377,17 @@ async function createPeerConnection(peerId, isCaller) {
   remoteVid.id          = `remote-${peerId}`;
   remoteVid.autoplay    = true;
   remoteVid.playsinline = true;
-  remoteVid.muted       = false;
+  remoteVid.muted       = true;
   videosDiv.appendChild(remoteVid);
 
   pc.ontrack = ({ streams }) => {
     console.log('[Peer] ontrack from', peerId);
     remoteVid.srcObject = streams[0];
+    remoteVid.play().catch(()=>{});
   };
 
-  // Only callers send offer
+ 
+
   if (isCaller) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -407,3 +451,4 @@ txt.addEventListener('keypress', (e) => {
   startSignalling();
   console.log('[Init] ready for mesh + chat + transcription');
 })();
+

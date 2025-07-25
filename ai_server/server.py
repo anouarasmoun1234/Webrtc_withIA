@@ -83,7 +83,7 @@ async def startup_event():
     global whisper_model
     logger.info("Loading Whisper model...")
     whisper_model = WhisperModel(
-        "tiny.en",
+        "base.en",
         device="cpu",
         compute_type="int8",
         cpu_threads=4
@@ -224,9 +224,9 @@ async def tts_endpoint(req: TTSReq = Body(...)):
 
     
     return {"wav_b64": b64}
-# --------------------------------------------
+
 # === LARA Q&A + SPEECH  =====================
-# --------------------------------------------
+
 from typing import Optional
 
 class AskReq(BaseModel):
@@ -289,16 +289,15 @@ async def ask_speech(req: AskReq = Body(...)):
     """
     context = load_recent_text(req.window)
     prompt  = (
-        "Tu es Lara, une assistante utile dans une visioconférence.\n"
-        "Réponds brièvement et clairement.\n\n"
+        "You are Lara, a helpful AI inside a video-conference. \n"
+        "Answer briefly and clearly.\n\n"
         "=== Contexte récent ===\n"
         f"{context}\n"
         "=======================\n\n"
         f"Question: {req.question}\n"
         "Réponse:"
     )
-    answer_text = run_lara(req.question, context)  # <-- remplace plus tard
-
+    answer_text = run_lara(req.question, context)  
     wav_bytes   = text_to_wav_bytes(answer_text, req.voice or DEFAULT_VOICE)
    
     b64         = base64.b64encode(wav_bytes).decode("utf-8")
@@ -306,7 +305,7 @@ async def ask_speech(req: AskReq = Body(...)):
 
 # --------------------------------------------
 # ===  LARA SUMMARY  =========================
-# --------------------------------------------
+
 from typing import Annotated
 from fastapi import Query
 
@@ -320,13 +319,14 @@ async def summary_endpoint(
     voice:  str = DEFAULT_VOICE
 ):
     """
-    Retourne un résumé (≈3 phrases) de la réunion
-    sur les *window* dernières minutes + TTS.
+    Return the summary of the meeting
+    in the last *window* minutes + TTS.
     """
+
     context = load_recent_text(window)
     prompt  = (
-        "Tu es Lara, assistante dans une visioconférence.\n"
-        f"Résume la discussion suivante en trois phrases claires :\n\n{context}"
+        "You are Lara, a helpful AI inside a video-conference. \n"
+        f"Summarize the following discussion in three clear sentences. :\n\n{context}"
     )
     summary = run_lara(prompt, "")          # pas de context supplémentaire
     wav     = text_to_wav_bytes(summary, voice)

@@ -8,3 +8,7 @@ ai/node_modules/
 __pycache__/
 *.pyc
 debug_audio.webm
+signalling/node_modules/
+client/node_modules/
+client/ai/node_modules/
+*.csv
