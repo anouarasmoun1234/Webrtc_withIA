@@ -12,3 +12,4 @@ signalling/node_modules/
 client/node_modules/
 client/ai/node_modules/
 *.csv
+ai_server/transcript.csv
